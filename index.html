@@ -16,8 +16,8 @@
 
 var config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: window.innerWidth,
+    height: window.innerHeight,
     physics: {
         default: 'arcade',
         arcade: {
@@ -43,6 +43,12 @@ var scoreText;
 
 var game = new Phaser.Game(config);
 
+window.addEventListener('resize', resizeGame);
+
+function resizeGame() {
+    game.scale.resize(window.innerWidth, window.innerHeight);
+}
+
 function preload ()
 {
     this.load.image('sky', 'assets/sky.png');
@@ -55,14 +61,14 @@ function preload ()
 function create ()
 {
     //  A simple background for our game
-    this.add.image(400, 300, 'sky');
+    this.add.image(window.innerWidth / 2, window.innerHeight / 2, 'sky');
 
     //  The platforms group contains the ground and the 2 ledges we can jump on
     platforms = this.physics.add.staticGroup();
 
     //  Here we create the ground.
     //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
-    platforms.create(400, 568, 'ground').setScale(2).refreshBody();
+    platforms.create(window.innerWidth / 2, window.innerHeight - 32, 'ground').setScale(2).refreshBody();
 
     //  Now let's create some ledges
     platforms.create(600, 400, 'ground');
@@ -179,7 +185,7 @@ function collectStar (player, star)
 
         });
 
-        var x = (player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+        var x = (player.x < window.innerWidth / 2) ? Phaser.Math.Between(window.innerWidth / 2, window.innerWidth) : Phaser.Math.Between(0, window.innerWidth / 2);
 
         var bomb = bombs.create(x, 16, 'bomb');
         bomb.setBounce(1);
