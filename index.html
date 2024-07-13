@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Making your first Phaser 3 Game - Part 10</title>
-    <script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
-    <style type="text/css">
-        body {
-            margin: 0;
-        }
-    </style>
+<meta charset="UTF-8" />
+<title>Making your first Phaser 3 Game - Part 10</title>
+<script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>
+<style type="text/css">
+body {
+    margin: 0;
+}
+</style>
 </head>
 <body>
 
@@ -43,18 +43,39 @@ var scoreText;
 
 var game = new Phaser.Game(config);
 
+var scaleRatio = window.innerWidth / 800; // базовая ширина игры
+
 window.addEventListener('resize', resizeGame);
 
 function resizeGame() {
+    scaleRatio = window.innerWidth / 800;
     game.scale.resize(window.innerWidth, window.innerHeight);
-    // При изменении размера окна также изменяем размер фоновой картинки и платформ
-    this.background.setSize(window.innerWidth, window.innerHeight);
-    platforms.children.iterate(function (platform) {
-        platform.setSize(platform.width * (window.innerWidth / config.width), platform.height);
-    });
+    if (player) {
+        player.setScale(scaleRatio);
+    }
+    if (platforms) {
+        platforms.children.entries.forEach(function(platform) {
+            platform.setScale(scaleRatio);
+            platform.refreshBody();
+        });
+    }
+    if (stars) {
+        stars.children.entries.forEach(function(star) {
+            star.setScale(scaleRatio);
+        });
+    }
+    if (bombs) {
+        bombs.children.entries.forEach(function(bomb) {
+            bomb.setScale(scaleRatio);
+        });
+    }
+    if (scoreText) {
+        scoreText.setFontSize(32 * scaleRatio);
+    }
 }
 
-function preload() {
+function preload ()
+{
     this.load.image('sky', 'assets/sky.png');
     this.load.image('ground', 'assets/platform.png');
     this.load.image('star', 'assets/star.png');
@@ -62,34 +83,43 @@ function preload() {
     this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
 }
 
-function create() {
-    // Фоновая картинка
-    this.background = this.add.image(window.innerWidth / 2, window.innerHeight / 2, 'sky');
+function create ()
+{
+    // A simple background for our game
+    this.add.image(window.innerWidth / 2, window.innerHeight / 2, 'sky').setDisplaySize(window.innerWidth, window.innerHeight);
 
-    // Платформы
+    // The platforms group contains the ground and the 2 ledges we can jump on
     platforms = this.physics.add.staticGroup();
-    platforms.create(window.innerWidth / 2, window.innerHeight - 32, 'ground').setScale(2).refreshBody();
-    platforms.create(600, 400, 'ground');
-    platforms.create(50, 250, 'ground');
-    platforms.create(750, 220, 'ground');
 
-    // Игрок
-    player = this.physics.add.sprite(100, 450, 'dude');
+    // Here we create the ground.
+    platforms.create(window.innerWidth / 2, window.innerHeight - 32 * scaleRatio, 'ground').setScale(2 * scaleRatio).refreshBody();
+
+    // Now let's create some ledges
+    platforms.create(600 * scaleRatio, 400 * scaleRatio, 'ground').setScale(scaleRatio).refreshBody();
+    platforms.create(50 * scaleRatio, 250 * scaleRatio, 'ground').setScale(scaleRatio).refreshBody();
+    platforms.create(750 * scaleRatio, 220 * scaleRatio, 'ground').setScale(scaleRatio).refreshBody();
+
+    // The player and its settings
+    player = this.physics.add.sprite(100 * scaleRatio, 450 * scaleRatio, 'dude').setScale(scaleRatio);
+
+    // Player physics properties. Give the little guy a slight bounce.
     player.setBounce(0.2);
     player.setCollideWorldBounds(true);
 
-    // Анимации игрока
+    // Our player animations, turning, walking left and walking right.
     this.anims.create({
         key: 'left',
         frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
         frameRate: 10,
         repeat: -1
     });
+
     this.anims.create({
         key: 'turn',
-        frames: [{ key: 'dude', frame: 4 }],
+        frames: [ { key: 'dude', frame: 4 } ],
         frameRate: 20
     });
+
     this.anims.create({
         key: 'right',
         frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
@@ -97,72 +127,94 @@ function create() {
         repeat: -1
     });
 
-    // Звезды
+    // Input Events
+    cursors = this.input.keyboard.createCursorKeys();
+
+    // Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
     stars = this.physics.add.group({
         key: 'star',
         repeat: 11,
-        setXY: { x: 12, y: 0, stepX: 70 }
+        setXY: { x: 12 * scaleRatio, y: 0, stepX: 70 * scaleRatio }
     });
+
     stars.children.iterate(function (child) {
         child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+        child.setScale(scaleRatio);
     });
 
-    // Бомбы
     bombs = this.physics.add.group();
 
-    // Очки
-    scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#000' });
+    // The score
+    scoreText = this.add.text(16, 16, 'score: 0', { fontSize: 32 * scaleRatio + 'px', fill: '#000' });
 
-    // Коллизии
+    // Collide the player and the stars with the platforms
     this.physics.add.collider(player, platforms);
     this.physics.add.collider(stars, platforms);
     this.physics.add.collider(bombs, platforms);
-    this.physics.add.overlap(player, stars, collectStar, null, this);
-    this.physics.add.collider(player, bombs, hitBomb, null, this);
 
-    // Изменение размеров объектов
-    resizeGame();
+    // Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
+    this.physics.add.overlap(player, stars, collectStar, null, this);
+
+    this.physics.add.collider(player, bombs, hitBomb, null, this);
 }
 
-function update() {
-    if (gameOver) {
+function update ()
+{
+    if (gameOver)
+    {
         return;
     }
 
-    if (cursors.left.isDown) {
-        player.setVelocityX(-160);
+    if (cursors.left.isDown)
+    {
+        player.setVelocityX(-160 * scaleRatio);
         player.anims.play('left', true);
-    } else if (cursors.right.isDown) {
-        player.setVelocityX(160);
+    }
+    else if (cursors.right.isDown)
+    {
+        player.setVelocityX(160 * scaleRatio);
         player.anims.play('right', true);
-    } else {
+    }
+    else
+    {
         player.setVelocityX(0);
         player.anims.play('turn');
     }
 
-    if (cursors.up.isDown && player.body.touching.down) {
-        player.setVelocityY(-330);
+    if (cursors.up.isDown && player.body.touching.down)
+    {
+        player.setVelocityY(-330 * scaleRatio);
     }
 }
 
-function collectStar(player, star) {
+function collectStar (player, star)
+{
     star.disableBody(true, true);
+
+    // Add and update the score
     score += 10;
     scoreText.setText('Score: ' + score);
-    if (stars.countActive(true) === 0) {
+
+    if (stars.countActive(true) === 0)
+    {
+        // A new batch of stars to collect
         stars.children.iterate(function (child) {
             child.enableBody(true, child.x, 0, true, true);
         });
+
         var x = (player.x < window.innerWidth / 2) ? Phaser.Math.Between(window.innerWidth / 2, window.innerWidth) : Phaser.Math.Between(0, window.innerWidth / 2);
+
         var bomb = bombs.create(x, 16, 'bomb');
         bomb.setBounce(1);
         bomb.setCollideWorldBounds(true);
-        bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+        bomb.setVelocity(Phaser.Math.Between(-200, 200) * scaleRatio, 20 * scaleRatio);
         bomb.allowGravity = false;
+        bomb.setScale(scaleRatio);
     }
 }
 
-function hitBomb(player, bomb) {
+function hitBomb (player, bomb)
+{
     this.physics.pause();
     player.setTint(0xff0000);
     player.anims.play('turn');
